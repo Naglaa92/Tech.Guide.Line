@@ -21,10 +21,19 @@ header h1{margin:0;font-size:1.6rem;text-shadow:0 1px 3px rgba(0,0,0,.35)}
  .info{align-items:center!important}}
 .langs button{background:transparent;color:#fff;border:1px solid #fff;padding:6px 12px;margin:0 2px;border-radius:6px;cursor:pointer;font-size:.9rem}
 .langs button.active{background:#fff;color:var(--red);font-weight:700}
-nav{background:var(--red-dark);display:flex;flex-wrap:wrap}
-nav button{flex:1;min-width:120px;background:none;border:0;color:#fff;padding:14px;font-size:1rem;cursor:pointer;border-bottom:4px solid transparent}
-nav button.active{border-bottom-color:#fff;font-weight:700;background:rgba(255,255,255,.1)}
-main{max-width:900px;margin:0 auto;padding:20px}
+.layout{display:flex;gap:20px;max-width:1200px;margin:0 auto;padding:20px;align-items:flex-start}
+aside{width:270px;flex:none;background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.15);overflow:hidden;position:sticky;top:10px}
+aside button{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:start;border:0;cursor:pointer;font:inherit}
+.sec-btn{background:var(--red);color:#fff;padding:13px 14px;font-size:1.05rem;font-weight:700;border-bottom:1px solid var(--red-dark)}
+.sec-btn.active{background:var(--red-dark)}
+.arrow{transition:transform .2s}.open>.sec-btn .arrow{transform:rotate(90deg)}
+[dir=rtl] .arrow{transform:scaleX(-1)}[dir=rtl] .open>.sec-btn .arrow{transform:scaleX(-1) rotate(90deg)}
+.sub{display:none;background:#fafafa}.open>.sub{display:block}
+.sub button{background:none;padding:10px 14px;padding-inline-start:26px;border-bottom:1px solid #eee;font-size:.93rem;color:var(--text)}
+.sub button:hover{background:#fdecee}
+.sub button.active{background:#fdecee;color:var(--red);font-weight:700;border-inline-start:4px solid var(--red)}
+.empty-note{padding:10px 14px;color:var(--muted);font-size:.9rem}
+@media(max-width:800px){.layout{flex-direction:column;padding:12px}aside{width:100%;position:static}}
 section{display:none}section.active{display:block}
 .card{background:var(--card);border-radius:10px;padding:18px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .card h3{margin-top:0;color:var(--red)}
@@ -53,12 +62,8 @@ footer{background:var(--red);color:#fff;text-align:center;padding:22px 10px;marg
     </div>
   </div>
 </header>
-<nav>
-  <button data-tab="infor"></button>
-  <button data-tab="softeon"></button>
-  <button data-tab="search"></button>
-</nav>
-
+<div class="layout">
+<aside id="side"></aside>
 <main>
   <section id="infor"></section>
   <section id="softeon"></section>
@@ -67,6 +72,7 @@ footer{background:var(--red);color:#fff;text-align:center;padding:22px 10px;marg
     <div id="results"></div>
   </section>
 </main>
+</div>
 
 <footer><div class="logo">We make your day to day experience more easy</div></footer>
 
@@ -95,7 +101,7 @@ const GUIDES = {
   infor: [
     {
       video: "",
-      title: {en:"How to log in to Infor", ar:"كيفية تسجيل الدخول إلى Infor", ur:"Infor mein login kaise karein"},
+      title: {en:"How to create awave picking", ar:"طريقه انشاء طلب مجمع", ur:"wave picking Ka tareeq"},
       steps: {
         en:["Open the Infor link.","Type your username and password.","Click Sign In."],
         ar:["افتح رابط Infor.","اكتب اسم المستخدم وكلمة المرور.","اضغط تسجيل الدخول."],
@@ -106,7 +112,7 @@ const GUIDES = {
   softeon: [
     {
       video: "",
-      title: {en:"How to create an order in Softeon", ar:"كيفية إنشاء طلب في Softeon", ur:"Softeon mein order kaise banayein"},
+      title: {en:"How to create awave picking", ar:"طريقه انشاء طلب مجمع", ur:"wave picking Ka tareeq"},
       steps: {
         en:["Open the Orders menu.","Click New Order.","Fill in the details and Save."],
         ar:["افتح قائمة الطلبات.","اضغط طلب جديد.","املأ البيانات ثم احفظ."],
@@ -120,7 +126,8 @@ const GUIDES = {
    3) CODE (no need to edit below)
    ===================================================== */
 let lang = localStorage.getItem("lang") || "en";
-let tab = "infor";
+let tab = "infor", idx = null;
+const open = {infor:true, softeon:false};
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
@@ -137,34 +144,51 @@ function cardHTML(g, label){
     <strong>${UI[lang].steps}:</strong>
     <ol>${g.steps[lang].map(s=>`<li>${s}</li>`).join("")}</ol></div>`;
 }
+function sideHTML(){
+  let h = "";
+  for(const k of ["infor","softeon"]){
+    h += `<div class="${open[k]?"open":""}">
+      <button class="sec-btn ${tab===k&&idx===null?"active":""}" onclick="toggleSec('${k}')">
+        <span>${UI[lang][k]}</span><span class="arrow">▶</span></button>
+      <div class="sub">${GUIDES[k].length ? GUIDES[k].map((g,i)=>
+        `<button class="${tab===k&&idx===i?"active":""}" onclick="openGuide('${k}',${i})"><span>▶ ${g.title[lang]}</span></button>`).join("")
+        : `<div class="empty-note">—</div>`}</div></div>`;
+  }
+  h += `<button class="sec-btn ${tab==="search"?"active":""}" onclick="openSearch()"><span>🔍 ${UI[lang].search}</span></button>`;
+  return h;
+}
 function render(){
   document.documentElement.lang = lang === "ur" ? "ur-Latn" : lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   document.title = UI[lang].title;
   $("#siteTitle").textContent = UI[lang].title;
-  $$("nav button").forEach(b=>{b.textContent=UI[lang][b.dataset.tab];b.classList.toggle("active",b.dataset.tab===tab)});
   $$(".langs button").forEach(b=>b.classList.toggle("active",b.dataset.lang===lang));
+  $("#side").innerHTML = sideHTML();
   $$("section").forEach(s=>s.classList.toggle("active",s.id===tab));
-  ["infor","softeon"].forEach(k=>$("#"+k).innerHTML = GUIDES[k].map(g=>cardHTML(g)).join(""));
+  ["infor","softeon"].forEach(k=>{
+    const list = (tab===k && idx!==null) ? [GUIDES[k][idx]] : GUIDES[k];
+    $("#"+k).innerHTML = list.map(g=>cardHTML(g)).join("");
+  });
   $("#q").placeholder = UI[lang].placeholder;
   doSearch();
 }
+function toggleSec(k){ open[k]=!open[k]||tab!==k||idx!==null; tab=k; idx=null; render(); }
+function openGuide(k,i){ tab=k; idx=i; open[k]=true; render(); window.scrollTo(0,0); }
+function openSearch(){ tab="search"; idx=null; render(); $("#q").focus(); }
 function doSearch(){
   const q = $("#q").value.trim().toLowerCase();
   if(!q){ $("#results").innerHTML=""; return; }
   let html = "";
   for(const k of ["infor","softeon"]){
-    GUIDES[k].forEach(g=>{
+    GUIDES[k].forEach((g,i)=>{
       const hay = (g.title[lang]+" "+g.steps[lang].join(" ")).toLowerCase();
-      if(hay.includes(q)) html += `<div class="result" onclick="go('${k}')">${cardHTML(g, UI[lang][k])}</div>`;
+      if(hay.includes(q)) html += `<div class="result" onclick="openGuide('${k}',${i})">${cardHTML(g, UI[lang][k])}</div>`;
     });
   }
   $("#results").innerHTML = html || `<p>${UI[lang].none}</p>`;
 }
-function go(t){ tab = t; render(); window.scrollTo(0,0); }
 
 $$(".langs button").forEach(b=>b.onclick=()=>{lang=b.dataset.lang;localStorage.setItem("lang",lang);render()});
-$$("nav button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
 $("#q").addEventListener("input", doSearch);
 render();
 </script>
