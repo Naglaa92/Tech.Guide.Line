@@ -98,6 +98,8 @@ const UI = {
    - Own file: upload the .mp4 next to index.html and write its name; write spaces as %20
      (example: file "ASN- Auto close- setup.mp4" -> "ASN-%20Auto%20close-%20setup.mp4")
    - Leave "" if there is no video yet.
+   - Language: a guide with "-AR" in its title or video file name shows ONLY in Arabic;
+     all other guides show ONLY in English and Roman Urdu. Add  show:"all"  to show a guide in every language.
    - proc: "in" = In process, "out" = Out process, "gen" = General setup (Softeon only).
    - Normal YouTube / Google Drive links are converted automatically. canva.link short links CANNOT be embedded:
      download the Canva video as MP4 and use "videos/name.mp4" instead.
@@ -146,6 +148,12 @@ const GUIDES = {
       proc: "gen", video: "ASN-%20Auto%20close-%20setup.mp4",  /* file uploaded in the same GitHub folder (spaces written as %20) */
       title: {en:"ASN Auto close setup", ar:"إعداد الإغلاق التلقائي لـ ASN", ur:"ASN Auto close setup"},
       steps: {en:[], ar:[], ur:[]}
+    },
+    {
+      /* Arabic-only video (name contains "-AR"). Upload the file next to index.html with this exact name. */
+      proc: "gen", video: "ASN-%20Auto%20close-%20setup-AR.mp4",
+      title: {en:"ASN Auto close setup - AR", ar:"ASN Auto close setup - AR", ur:"ASN Auto close setup - AR"},
+      steps: {en:[], ar:[], ur:[]}
     }
   ]
 };
@@ -161,6 +169,15 @@ const $$ = s => document.querySelectorAll(s);
 const SUBS = {infor:["in","out"], softeon:["in","out","gen"]};
 const LBL = {in:"inp", out:"outp", gen:"genp"};
 const pr = g => g.proc || "in";
+/* Language rule: a guide whose title or video file name contains "-AR" (capital letters)
+   is shown in Arabic ONLY. All other guides are shown in English and Roman Urdu ONLY.
+   Optional: add  show:"all"  to a guide to show it in every language. */
+const AR_RX = /[-\u2013_ ]\s*AR(?![A-Za-z0-9])/;
+function isAR(g){
+  let v = g.video || ""; try{ v = decodeURI(v); }catch(e){}
+  return g.show === "ar" || AR_RX.test(v) || AR_RX.test(g.title.en || "");
+}
+const vis = g => g.show === "all" || (lang === "ar" ? isAR(g) : !isAR(g));
 
 function fixUrl(u){
   let m;
@@ -191,7 +208,7 @@ function sideHTML(){
         <span>${UI[lang][k]}</span><span class="arrow">▶</span></button><div class="sub">`;
     for(const p of SUBS[k]){
       const key = k+"_"+p;
-      const items = GUIDES[k].map((g,i)=>({g,i})).filter(o=>pr(o.g)===p);
+      const items = GUIDES[k].map((g,i)=>({g,i})).filter(o=>pr(o.g)===p && vis(o.g));
       h += `<div class="${open[key]?"open":""}">
         <button class="proc-btn ${tab===k&&idx===null&&proc===p?"active":""}" onclick="toggleProc('${k}','${p}')">
           <span>${UI[lang][LBL[p]]}</span><span class="arrow">▶</span></button>
@@ -205,6 +222,7 @@ function sideHTML(){
   return h;
 }
 function render(){
+  if(idx!==null && GUIDES[tab] && !vis(GUIDES[tab][idx])) idx = null;
   document.documentElement.lang = lang === "ur" ? "ur-Latn" : lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   document.title = UI[lang].title;
@@ -213,10 +231,10 @@ function render(){
   $("#side").innerHTML = sideHTML();
   $$("section").forEach(s=>s.classList.toggle("active",s.id===tab));
   ["infor","softeon"].forEach(k=>{
-    let list = GUIDES[k];
+    let list = GUIDES[k].filter(vis);
     if(tab===k){
       if(idx!==null) list = [GUIDES[k][idx]];
-      else if(proc) list = GUIDES[k].filter(g=>pr(g)===proc);
+      else if(proc) list = list.filter(g=>pr(g)===proc);
     }
     $("#"+k).innerHTML = list.length ? list.map(g=>cardHTML(g)).join("") : `<div class="card">${UI[lang].none}</div>`;
   });
@@ -236,6 +254,7 @@ function doSearch(){
   let html = "";
   for(const k of ["infor","softeon"]){
     GUIDES[k].forEach((g,i)=>{
+      if(!vis(g)) return;
       const hay = (g.title[lang]+" "+g.steps[lang].join(" ")).toLowerCase();
       if(hay.includes(q)) html += `<div class="result" onclick="openGuide('${k}',${i})">${cardHTML(g, UI[lang][k]+" › "+UI[lang][LBL[pr(g)]])}</div>`;
     });
